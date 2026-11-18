@@ -1,6 +1,9 @@
-from fastapi import FastAPI, Request
+from starlette.exceptions import HTTPException as StarletteHttpException
+from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 templates = Jinja2Templates(directory="templates")
 
@@ -31,6 +34,12 @@ posts: list[dict] = [
     },
 ]
 
+def get_post_by_id(post_id: int):
+    for post in posts:
+        if post["id"] == post_id:
+            return post
+    return None
+
 @app.get("/", include_in_schema=False, name="home")
 @app.get("/posts", include_in_schema=False, name="posts")
 def home_page(request: Request):
@@ -40,6 +49,60 @@ def home_page(request: Request):
         context={"posts": posts, "title": "Посты"}
     )
 
+@app.get("/posts/{post_id}")
+def get_post_detail_page(request: Request, post_id: int):
+    post = get_post_by_id(post_id)
+    if post:
+        context = {"title": post.get("title")[:20], "post": post}
+        return templates.TemplateResponse(
+            request,
+            "post_detail.html",
+            context=context
+        )
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
 @app.get("/api/posts")
 def get_posts():
     return posts
+
+@app.get("/api/posts/{post_id}")
+def get_post(post_id: int):
+    post = get_post_by_id(post_id)
+    if post:
+        return post
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+@app.exception_handler(StarletteHttpException)
+def general_http_exception_handler(request: Request, exception: StarletteHttpException):
+    message = exception.detail if exception.detail else "Что-то пошло не так. Повторите запрос."
+    if request.url.path.startswith("/api"):
+        return JSONResponse(
+            status_code=exception.status_code,
+            content={"detail": message}
+        )
+    return templates.TemplateResponse(
+        request,
+        "error.html",
+        context={
+            "error_message": message,
+            "status_code": exception.status_code
+        },
+        status_code=exception.status_code
+    )
+
+@app.exception_handler(RequestValidationError)
+def validation_exception_handler(request: Request, exception: RequestValidationError):
+    if request.url.path.startswith("/api"):
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            content={"detail": exception.errors()}
+        )
+    return templates.TemplateResponse(
+        request,
+        "error.html",
+        context={
+            "error_message": "Что-то пошло не так. Повторите запрос.",
+            "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT
+        },
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT
+    )
