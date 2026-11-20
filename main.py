@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from schemas import PostResponse, PostCreate
 
 templates = Jinja2Templates(directory="templates")
 
@@ -49,7 +50,20 @@ def home_page(request: Request):
         context={"posts": posts, "title": "Посты"}
     )
 
-@app.get("/posts/{post_id}")
+@app.post("/api/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
+def create_post(post_create: PostCreate):
+    next_id = max([post["id"] for post in posts]) + 1 if posts else 1
+    new_post = {
+        "id": next_id,
+        "author": post_create.author,
+        "title": post_create.title,
+        "content": post_create.content,
+        "created_at": "November 20, 2026",
+    }
+    posts.append(new_post)
+    return new_post
+
+@app.get("/posts/{post_id}", include_in_schema=False)
 def get_post_detail_page(request: Request, post_id: int):
     post = get_post_by_id(post_id)
     if post:
@@ -61,11 +75,11 @@ def get_post_detail_page(request: Request, post_id: int):
         )
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
 
-@app.get("/api/posts")
+@app.get("/api/posts", response_model=list[PostResponse])
 def get_posts():
     return posts
 
-@app.get("/api/posts/{post_id}")
+@app.get("/api/posts/{post_id}", response_model=PostResponse)
 def get_post(post_id: int):
     post = get_post_by_id(post_id)
     if post:
