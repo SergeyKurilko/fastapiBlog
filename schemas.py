@@ -1,18 +1,37 @@
-from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
+
+
+class UserBase(BaseModel):
+    username: str = Field(min_length=3, max_length=120)
+    email: EmailStr = Field(max_length=120)
+
+
+class UserCreate(UserBase):
+    pass
+
+
+class UserResponse(UserBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    image: str | None
+    path_to_image: str
 
 
 class PostBase(BaseModel):
     title: str = Field(min_length=3, max_length=100)
     content: str = Field(min_length=1)
-    author: str = Field(min_length=3, max_length=70)
 
 
 class PostCreate(PostBase):
-    pass
+    user_id: int # ВРЕМЕННО
 
 
 class PostResponse(PostBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    created_at: str
+    user_id: int
+    author: UserResponse
+    created_at: datetime
