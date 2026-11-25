@@ -19,9 +19,20 @@ class UserResponse(UserBase):
     path_to_image: str
 
 
+class UserUpdate(BaseModel):
+    username: str | None = Field(min_length=3, max_length=120, default=None)
+    email: EmailStr | None = Field(max_length=120, default=None)
+    image: str | None = Field(min_length=3, max_length=120, default=None)
+
+
 class PostBase(BaseModel):
     title: str = Field(min_length=3, max_length=100)
     content: str = Field(min_length=1)
+
+
+class PostUpdate(PostBase):
+    title: str | None = Field(min_length=3, max_length=100, default=None)
+    content: str | None = Field(min_length=1, default=None)
 
 
 class PostCreate(PostBase):
